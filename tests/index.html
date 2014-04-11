@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+<head>
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/mocha/1.13.0/mocha.min.css">
+    <style type="text/css">
+        .displays {
+            display: flex
+        }
+        .displays canvas {
+            border: 5px solid black;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="displays">
+        <canvas id="host" width="200" height="200"></canvas>
+        <canvas id="client" width="200" height="200"></canvas>
+    </div>
+    <div id="mocha"></div>
+    
+    <script type="text/javascript" src="http://cdn.peerjs.com/0.3.8/peer.min.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/mocha/1.13.0/mocha.js"></script>
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/chai/1.9.0/chai.min.js"></script>
+    <script type="text/javascript" src="../src/multicanvas.js"></script>
+    <script type="text/javascript">
+        var host = MultiCanvas(document.getElementById("host")),
+            client = MultiCanvas(document.getElementById("client"));
+        
+        mocha.setup("bdd");
+        
+        window.assert = chai.assert;
+        
+        describe("Chainable", function() {
+            var chained = Chainable("test");
+
+            it("should have chainable properties", function() {
+                assert.property(chained, "lift");
+                assert.property(chained, "bind");
+            });
+
+            it("should lift functions", function() {
+                chained.lift("identity", function(test) { return test; });
+                chained.lift("noop", function(test) {});
+                assert.equal(chained.identity(), "test");
+                assert.equal(chained.noop(), chained);
+            });
+            
+            it("should bind functions", function() {
+                assert.equal(chained.bind(function(test) {}), chained);  
+                assert.equal(chained.bind(function(test) { return test; }), "test");
+            });
+            
+            it("should accept arguments to bind", function() {
+                assert.equal(chained.bind(function(test, tester) { return tester; }, ["tester"]), "tester"); 
+            });
+            
+            it("should accept arguments to lift", function() {
+                chained.lift("identities", function(test, tester) { return tester; });
+                assert.equal(chained.identities("tester"), "tester"); 
+            });
+            
+            it("should have chainable lifts", function() {
+                var results = chained.lift("lift1", function(){}).lift("lift2", function(){});
+                assert.equal(results, chained);
+            });
+        });
+        
+        describe("MultiCanvas", function() {
+            it("should be chainable", function() {
+                assert.property(host, "lift");
+                assert.property(host, "bind");
+            });
+        });
+        mocha.run();
+    </script>
+</body>
+</html>
