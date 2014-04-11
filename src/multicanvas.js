@@ -24,11 +24,40 @@ var Chainable = (function() {
     };
 } ());
 
-var MultiCanvas = function(canvas) {
+var MultiCanvas = (function() {
     "use strict";
     
-    return Chainable(canvas)
-        .lift("update", function(canvas) {
-            
-        });
-};
+    return function(canvas) {
+        var peer = new Peer(null, { key : "x87ju7n4u66layvi" });
+        
+        return Chainable(canvas)
+            .bind(function() {
+                this.conns = {};
+            })
+            .lift("tick", function(canvas) {
+                
+            })
+            .lift("opened", function(canvas, conn) {
+                conn.on("close", this.closed);
+                conn.on("data", this.data);
+                
+                this.conns[conn.peer] = conn;
+            })
+            .lift("data", function(canvas, data) {
+                
+            })
+            .lift("closed", function(canvas, conn) {
+                delete this.conns[conn.peer];
+            })
+            // Public APIs
+            .lift("host", function(canvas) {
+                peer.on("connection", this.opened);
+                // start broadcasting data
+            })
+            .lift("connect", function(canvas, id) {
+                var conn = peer.connect(id);
+                conn.on("open", this.opened);
+                // bind inputs
+            });
+    };
+} ());
