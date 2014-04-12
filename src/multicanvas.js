@@ -113,10 +113,9 @@ var MultiCanvas = (function() {
         var peer = new Peer({ key : "x87ju7n4u66layvi" }),
             conns = {},
             host = false,
-            bufferSize = 5,
             ctx = canvas.getContext("2d"),
             lastBuffer = [],
-            drawFactor = 20,
+            drawFactor = 10,
             dfNum = numDf.bind(undefined, drawFactor),
             dfWidth = dfNum(canvas.width),
             dfHeight = dfNum(canvas.height);
@@ -140,7 +139,6 @@ var MultiCanvas = (function() {
             .lift("connection", function(canvas, conn) {
                 conn.on("close", this.closed);
                 conn.on("data", this.data);
-                conn.bufferSize = bufferSize;
                 conns[conn.peer] = conn;
             })
             .lift("data", function(canvas, data) {
@@ -160,10 +158,14 @@ var MultiCanvas = (function() {
             .lift("closed", function(canvas, conn) {
                 delete this.conns[conn.peer];
             })
-            .lift("send", function(canvas, data) {
+            .lift("send", function(canvas, data) { 
+
                 Object.keys(conns).forEach(function(peer) {
-                    conns[peer].send(data); 
+                    conns[peer]._buffer = [];
+                    conns[peer].bufferSize = 0;
+                    conns[peer].send(data);
                 });
+
             })
             // Public APIs
             .property("peer", function(canvas) {
@@ -171,7 +173,6 @@ var MultiCanvas = (function() {
             })
             .lift("host", function(canvas, tickRate, nBufferSize) {
                 host = true;
-                bufferSize = nBufferSize !== undefined ? nBufferSize : bufferSize;
                 peer.on("connection", this.connection);
                 // start broadcasting data
                 setInterval(this.tick, tickRate);

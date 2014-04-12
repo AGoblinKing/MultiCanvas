@@ -12,6 +12,7 @@
         }
         canvas {
             image-rendering: optimizeSpeed;
+            background-color: black;
         }
         .displays {
             display: flex;
@@ -74,7 +75,7 @@
             document.getElementById("hostId").value = id;
         });
         
-        document.getElementById("startHost").addEventListener("click", mc.host.bind(mc, 1000 / 10));
+        document.getElementById("startHost").addEventListener("click", mc.host.bind(mc, 1000 / 24));
         document.getElementById("startConnect").addEventListener("click", function() {
             mc.connect(document.getElementById("connectId").value);
         });
