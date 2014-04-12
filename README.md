@@ -12,4 +12,4 @@ Demos
 
 - http://joshgalvin.github.io/MultiCanvas/tests/
 - http://joshgalvin.github.io/MultiCanvas/samples/snes/
-
+- http://joshgalvin.github.io/MultiCanvas/samples/snes-remote/
