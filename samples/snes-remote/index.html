@@ -50,11 +50,9 @@
         <div class="flex">
             <input type="text" id="fps" size="5"/>
             <input class="btn btn-primary" type="file" onchange="snes_readfile(this)" />
-            <input class="btn btn-success" type="button" id="start" value="start" onclick="snes_main()" />
+            <input id="hostId" type="text" placeholder="Your ID once you click host" readonly/>
         </div>
         <div class="flex">
-            <button id="startHost" class="btn btn-primary">Host</button>
-            <input id="hostId" type="text" placeholder="Your ID once you click host" readonly/>
             <button id="startConnect" class="btn btn-success">Connect to Host</button>
             <input id="connectId" type="text" placeholder="ID of host you want to connect to"/>
         </div>
@@ -65,7 +63,7 @@
         </textarea>
     </div>
     <script type="text/javascript" src="../xnes9x.js"></script>
-    <script type="text/javascript" src="http://cdn.peerjs.com/0.3.8/peer.min.js"></script>
+    <script type="text/javascript" src="../../src/peer.js"></script>
     <script type="text/javascript" src="../../src/multicanvas.js"></script>
     <script type="text/javascript">
         var canvasElement = document.getElementById("canvas"),
@@ -75,7 +73,6 @@
             document.getElementById("hostId").value = id;
         });
         
-        document.getElementById("startHost").addEventListener("click", mc.host.bind(mc, 1000 / 24));
         document.getElementById("startConnect").addEventListener("click", function() {
             mc.connect(document.getElementById("connectId").value);
         });
@@ -197,18 +194,20 @@
                     cout_print(Math.round((e.loaded / e.total) * 100) + "%")
                 } else
                     count_print(e.loaded + "bytes")
-                document.getElementById("start").disabled = false
+
 
             }
             reader.onload = function(e) {
                 cout_print("_.smc loaded")
                 Module.FS_createDataFile("/", "_.smc", new Uint8Array(this.result), true, true)
+                snes_main();
+                mc.host(1000 / 24);
             }
             reader.readAsArrayBuffer(f)
         }
 
         function snes_main() {
-            document.getElementById("start").disabled = true
+
             snes_init()
             reboot_romnum = -1
             frames = 0

@@ -101,6 +101,7 @@ var Simulate =  (function() {
     }
 } ());
 */
+
 var MultiCanvas = (function() {
     "use strict";
     
@@ -114,22 +115,37 @@ var MultiCanvas = (function() {
                 alpha = 0;
             
             for(var i = 0; i < iter.length; i+=4) {
-                red += iter[i]
-                green += iter[i+1]
-                blue += iter[i+2]
-                alpha += iter[i+3]
+                red += iter[i];
+                green += iter[i+1];
+                blue += iter[i+2];
+                alpha += iter[i+3];
             }
             return "r"+red+"g"+green+"b"+blue+"a"+alpha;
         },
-        numDf = function(df, number) { return Math.floor(number / df); };
+        numDf = function(df, number) { return Math.floor(number / df); },
+        toString = function(iter) {
+            var str = "";
+            for(var i = 0; i < iter.length; i++) {
+                str += String.fromCharCode(iter[i]);
+            }
+            return str;
+        },
+        fromString = function(raw) {
+            var iter = raw,
+                results = new Uint8ClampedArray(iter.length);
+            for(var i = 0; i < iter.length; i++) {
+                results[i] = iter.charCodeAt(i);
+            }
+            return results;
+        };
     
     return function(canvas) {
-        var peer = new Peer({ key : "x87ju7n4u66layvi" }),
+        var peer = new Peer(Math.floor(Math.random() * 50), { key : "x87ju7n4u66layvi" }),
             conns = {},
             host = false,
             ctx = canvas.getContext("2d"),
             lastBuffer = [],
-            drawFactor = 25,
+            drawFactor = 15,
             dfNum = numDf.bind(undefined, drawFactor),
             dfWidth = dfNum(canvas.width),
             dfHeight = dfNum(canvas.height);
@@ -149,6 +165,7 @@ var MultiCanvas = (function() {
                     
                     lastBuffer[i] = hash;
                 }
+
                 this.send(deltas);
             })
             .lift("connection", function(canvas, conn) {
@@ -171,17 +188,19 @@ var MultiCanvas = (function() {
                 }
             })
             .lift("closed", function(canvas, conn) {
-                delete this.conns[conn.peer];
+                delete conns[conn.peer];
             })
             .lift("send", function(canvas, data) { 
 
                 Object.keys(conns).forEach(function(peer) {
                     var conn = conns[peer];
         
-                    conn._buffer = [];
-                    conn.bufferSize = 0;
-                    conn.buffered = false;
-                    
+                    // buffer is greater than 1 lets concat onto next message
+                    if(conn._buffer.length > 50) {
+                        conn._buffer = [];
+                        conn.bufferSize = 0;
+                        conn.buffering = false;
+                    }
                     conn.send(data);
                 });
 
