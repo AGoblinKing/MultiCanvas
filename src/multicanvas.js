@@ -104,30 +104,57 @@ var Simulate =  (function() {
 var MultiCanvas = (function() {
     "use strict";
     
+    var isDirty = function(oldBuffer, newBuffer) {
+            return true;
+        }, 
+        numDf = function(df, number) { return Math.floor(number / df); };
+    
     return function(canvas) {
         var peer = new Peer({ key : "x87ju7n4u66layvi" }),
             conns = {},
             host = false,
-            ctx = canvas.getContext("2d");
-        
+            bufferSize = 5,
+            ctx = canvas.getContext("2d"),
+            lastBuffer = [],
+            drawFactor = 20,
+            dfNum = numDf.bind(undefined, drawFactor),
+            dfWidth = dfNum(canvas.width),
+            dfHeight = dfNum(canvas.height);
+            
         return Chainable(canvas)
             .lift("tick", function(canvas) {
-                var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                
-                // TODO: just send deltas, this is killing the bandwidth
-                this.send(imageData.data);
+                var deltas = [];
+                for(var i = 0; i < drawFactor * drawFactor; i++) {
+                    var imageData = ctx.getImageData((i % drawFactor) * dfWidth, dfNum(i) * dfHeight, dfWidth, dfHeight);
+                    
+                    if(lastBuffer.length !== 0 && true) {
+                        deltas.push(imageData.data);
+                    } else {
+                        deltas.push(null);
+                    }
+                    
+                    lastBuffer[i] = true;
+                }
+                this.send(deltas);
             })
             .lift("connection", function(canvas, conn) {
                 conn.on("close", this.closed);
                 conn.on("data", this.data);
-                conn.bufferSize = 5;
+                conn.bufferSize = bufferSize;
                 conns[conn.peer] = conn;
             })
             .lift("data", function(canvas, data) {
                 if(!host) {
-                    var imageData = ctx.createImageData(canvas.width, canvas.height);
-                    imageData.data.set(new Uint8ClampedArray(data));
-                    ctx.putImageData(imageData, 0, 0);
+                    //probably move this out
+                    var imageData = ctx.createImageData(dfWidth, dfHeight);
+                
+                    for(var i = 0; i < data.length; i++) {
+                        if(data[i]) {
+                            var rawData = new Uint8ClampedArray(data[i]);
+                            imageData.data.set(rawData);
+                            ctx.putImageData(imageData, (i % drawFactor) * dfWidth, dfNum(i) * dfHeight);
+                        }
+                    }
                 }
             })
             .lift("closed", function(canvas, conn) {
@@ -142,8 +169,9 @@ var MultiCanvas = (function() {
             .property("peer", function(canvas) {
                 return peer;
             })
-            .lift("host", function(canvas, tickRate) {
+            .lift("host", function(canvas, tickRate, nBufferSize) {
                 host = true;
+                bufferSize = nBufferSize !== undefined ? nBufferSize : bufferSize;
                 peer.on("connection", this.connection);
                 // start broadcasting data
                 setInterval(this.tick, tickRate);
