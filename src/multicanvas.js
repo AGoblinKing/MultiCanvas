@@ -120,7 +120,7 @@ var MultiCanvas = (function() {
             .lift("connection", function(canvas, conn) {
                 conn.on("close", this.closed);
                 conn.on("data", this.data);
-                conn.bufferSize = 1;
+                conn.bufferSize = 5;
                 conns[conn.peer] = conn;
             })
             .lift("data", function(canvas, data) {

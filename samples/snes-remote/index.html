@@ -31,6 +31,10 @@
         .center {
             width: 900px;
         }
+        .flex { display: flex; }
+        #fps { display: none; }
+        input, button { margin: 5px; }
+        #output { width: 100%; margin: 5px;}
     </style>
 </head>
 
@@ -41,11 +45,19 @@
         </div>
         <div class="displays well">
             <canvas id="canvas" width="256" height="239"></canvas>
-            <canvas id="client" width="256" height="239"></canvas>
         </div>
-        <input type="text" id="fps" size="5"/>
-        <input type="file" onchange="snes_readfile(this)" />
-        <input type="button" id="start" value="start" onclick="snes_main()" />
+        <div class="flex">
+            <input type="text" id="fps" size="5"/>
+            <input class="btn btn-primary" type="file" onchange="snes_readfile(this)" />
+            <input class="btn btn-success" type="button" id="start" value="start" onclick="snes_main()" />
+        </div>
+        <div class="flex">
+            <button id="startHost" class="btn btn-primary">Host</button>
+            <input id="hostId" type="text" placeholder="Your ID once you click host" readonly/>
+            <button id="startConnect" class="btn btn-success">Connect to Host</button>
+            <input id="connectId" type="text" placeholder="ID of host you want to connect to"/>
+        </div>
+        
         <div id="status"></div>
         <textarea id="output" class="well">
 
@@ -55,18 +67,18 @@
     <script type="text/javascript" src="http://cdn.peerjs.com/0.3.8/peer.min.js"></script>
     <script type="text/javascript" src="../../src/multicanvas.js"></script>
     <script type="text/javascript">
-        var hostElement = document.getElementById("canvas"),
-            clientElement = document.getElementById("client"),
-            host = MultiCanvas(hostElement),
-            hostCtx = hostElement.getContext("2d"),
-            client = MultiCanvas(clientElement),
-            clientCtx = clientElement.getContext("2d");
+        var canvasElement = document.getElementById("canvas"),
+            mc = MultiCanvas(canvasElement);
 
-        host.host(1000 / 10);
-
-        host.peer.on("open", function(id) {
-            client.connect(id);
+        mc.peer.on("open", function(id) {
+            document.getElementById("hostId").value = id;
         });
+        
+        document.getElementById("startHost").addEventListener("click", mc.host.bind(mc, 1000 / 10));
+        document.getElementById("startConnect").addEventListener("click", function() {
+            mc.connect(document.getElementById("connectId").value);
+        });
+        
 
          // not responsible for the following :/
 
