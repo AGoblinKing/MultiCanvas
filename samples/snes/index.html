@@ -62,7 +62,7 @@
             client = MultiCanvas(clientElement),
             clientCtx = clientElement.getContext("2d");
 
-        host.host(1000 / 24);
+        host.host(1000 / 10);
 
         host.peer.on("open", function(id) {
             client.connect(id);
