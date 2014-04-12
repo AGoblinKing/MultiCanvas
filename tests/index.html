@@ -1,36 +1,55 @@
 <!doctype html>
 <html>
 <head>
+    <meta charset="utf-8">
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/mocha/1.13.0/mocha.min.css">
+    <link rel="stylesheet" href="bootstrap.min.css">
+    
     <style type="text/css">
+        body { 
+            display: flex;
+            justify-content: center;
+        }
         .displays {
-            display: flex
+            display: flex;
+            justify-content: center;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            cursor: pointer;
         }
         .displays canvas {
             border: 5px solid black;
             margin: 5px;
         }
+        .center {
+            width: 900px;
+        }
     </style>
 </head>
 <body>
-    <div class="displays">
-        <canvas id="host" width="200" height="200"></canvas>
-        <canvas id="client" width="200" height="200"></canvas>
+    <div class="center">
+        <div class="page-header">
+            <h1>MultiCanvas Tests</h1>
+        </div>
+        <div class="displays">
+            <canvas id="host" width="200" height="200"></canvas>
+            <canvas id="client" width="200" height="200"></canvas>
+        </div>
+        <div id="mocha" class="well"></div>
     </div>
-    <div id="mocha"></div>
-    
     <script type="text/javascript" src="http://cdn.peerjs.com/0.3.8/peer.min.js"></script>
     <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/mocha/1.13.0/mocha.js"></script>
     <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/chai/1.9.0/chai.min.js"></script>
     <script type="text/javascript" src="../src/multicanvas.js"></script>
     <script type="text/javascript">
-        var host = MultiCanvas(document.getElementById("host")),
-            client = MultiCanvas(document.getElementById("client"));
-        
+
         mocha.setup("bdd");
-        
         window.assert = chai.assert;
-        
+
         describe("Chainable", function() {
             var chained = Chainable("test");
 
@@ -45,25 +64,40 @@
                 assert.equal(chained.identity(), "test");
                 assert.equal(chained.noop(), chained);
             });
-            
+
             it("should bind functions", function() {
                 assert.equal(chained.bind(function(test) {}), chained);  
                 assert.equal(chained.bind(function(test) { return test; }), "test");
             });
-            
+
             it("should accept arguments to bind", function() {
                 assert.equal(chained.bind(function(test, tester) { return tester; }, ["tester"]), "tester"); 
             });
-            
+
             it("should accept arguments to lift", function() {
                 chained.lift("identities", function(test, tester) { return tester; });
                 assert.equal(chained.identities("tester"), "tester"); 
             });
-            
+
             it("should have chainable lifts", function() {
                 var results = chained.lift("lift1", function(){}).lift("lift2", function(){});
                 assert.equal(results, chained);
             });
+        });
+
+        var hostElement = document.getElementById("host"),
+            clientElement = document.getElementById("client"),
+            host = MultiCanvas(hostElement),
+            hostCtx = hostElement.getContext("2d"),
+            client = MultiCanvas(clientElement),
+            clientCtx = clientElement.getContext("2d");
+        
+        hostElement.addEventListener("click", function(e) {
+            var x = e.offsetX,
+                y = e.offsetY;
+            
+            hostCtx.strokeStyle = "rgb(0,0,200)";
+            hostCtx.strokeRect(x, y, 5, 5);
         });
         
         describe("MultiCanvas", function() {
@@ -71,8 +105,37 @@
                 assert.property(host, "lift");
                 assert.property(host, "bind");
             });
+
+            it("should have a host connect", function(callback) {
+                var peerHost = host.peer;
+                host.host(1000/24);
+
+                peerHost.on("connection", function() { 
+                    callback();
+                });
+
+                peerHost.on("open", function(id) {
+                    client.connect(id);
+                });
+            });
+
+            it("should draw in client when drawn in host", function(callback) {
+                hostCtx.fillStyle = "rgb(200,0,0)";  
+                hostCtx.fillRect(0, 0, 55, 50); 
+                
+                var checkData = function() {
+                    if(hostCtx.getImageData(0,0,1,1).data[0] === clientCtx.getImageData(0,0,1,1).data[0]) {
+                        callback();
+                    } else {
+                        setTimeout(checkData, 10);
+                    }
+                }
+                checkData();
+            });
         });
+        
         mocha.run();
+
     </script>
 </body>
 </html>

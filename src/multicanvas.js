@@ -1,6 +1,6 @@
 var Chainable = (function() {
     "use strict";
-    
+
     // thought about putting additional values here
     return function unit(value) {
         var chains = {
@@ -12,10 +12,21 @@ var Chainable = (function() {
                     return results;
                 }
             },
+            wrap : function(fn) {
+                var self = this;
+                return function() { return self.bind.call(self, fn, arguments) };
+            },
             lift : function(property, fn) {
-                this[property] = function() {
-                    return this.bind.call(this, fn, arguments);
-                };
+                this[property] = this.wrap(fn);
+                return this;
+            },
+            property : function(property, get, set) {
+                Object.defineProperty(this, property, {
+                    enumerable: true,
+                    configurable: true,
+                    get: get ? this.wrap(get) : undefined,
+                    set: set ? this.wrap(set) : undefined
+                });
                 return this;
             }
         };
@@ -26,37 +37,52 @@ var Chainable = (function() {
 
 var MultiCanvas = (function() {
     "use strict";
-    
+
     return function(canvas) {
-        var peer = new Peer(null, { key : "x87ju7n4u66layvi" });
+        var peer = new Peer({ key : "x87ju7n4u66layvi" }),
+            conns = {},
+            host = false,
+            ctx = canvas.getContext("2d");
         
         return Chainable(canvas)
-            .bind(function() {
-                this.conns = {};
-            })
             .lift("tick", function(canvas) {
+                var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 
+                this.send(imageData.data);
             })
-            .lift("opened", function(canvas, conn) {
+            .lift("connection", function(canvas, conn) {
                 conn.on("close", this.closed);
                 conn.on("data", this.data);
                 
-                this.conns[conn.peer] = conn;
+                conns[conn.peer] = conn;
             })
             .lift("data", function(canvas, data) {
-                
+                if(!host) {
+                    var imageData = ctx.createImageData(canvas.width, canvas.height);
+                    imageData.data.set(new Uint8ClampedArray(data));
+                    ctx.putImageData(imageData, 0, 0);
+                }
             })
             .lift("closed", function(canvas, conn) {
                 delete this.conns[conn.peer];
             })
+            .lift("send", function(canvas, data) {
+                Object.keys(conns).forEach(function(peer) {
+                    conns[peer].send(data); 
+                });
+            })
             // Public APIs
-            .lift("host", function(canvas) {
-                peer.on("connection", this.opened);
+            .property("peer", function(canvas) {
+                return peer;
+            })
+            .lift("host", function(canvas, tickRate) {
+                host = true;
+                peer.on("connection", this.connection);
                 // start broadcasting data
+                setInterval(this.tick, tickRate);
             })
             .lift("connect", function(canvas, id) {
-                var conn = peer.connect(id);
-                conn.on("open", this.opened);
+                this.connection(peer.connect(id));
                 // bind inputs
             });
     };
