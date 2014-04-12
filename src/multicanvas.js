@@ -104,9 +104,23 @@ var Simulate =  (function() {
 var MultiCanvas = (function() {
     "use strict";
     
-    var isDirty = function(oldBuffer, newBuffer) {
-            return true;
+    var isDirty = function(old, newB) {
+            return old !== newB;
         }, 
+        hashFn = function(iter) {
+            var red = 0,
+                green = 0,
+                blue = 0,
+                alpha = 0;
+            
+            for(var i = 0; i < iter.length; i+=4) {
+                red += iter[i]
+                green += iter[i+1]
+                blue += iter[i+2]
+                alpha += iter[i+3]
+            }
+            return "r"+red+"g"+green+"b"+blue+"a"+alpha;
+        },
         numDf = function(df, number) { return Math.floor(number / df); };
     
     return function(canvas) {
@@ -115,7 +129,7 @@ var MultiCanvas = (function() {
             host = false,
             ctx = canvas.getContext("2d"),
             lastBuffer = [],
-            drawFactor = 10,
+            drawFactor = 25,
             dfNum = numDf.bind(undefined, drawFactor),
             dfWidth = dfNum(canvas.width),
             dfHeight = dfNum(canvas.height);
@@ -124,20 +138,21 @@ var MultiCanvas = (function() {
             .lift("tick", function(canvas) {
                 var deltas = [];
                 for(var i = 0; i < drawFactor * drawFactor; i++) {
-                    var imageData = ctx.getImageData((i % drawFactor) * dfWidth, dfNum(i) * dfHeight, dfWidth, dfHeight);
+                    var imageData = ctx.getImageData((i % drawFactor) * dfWidth, dfNum(i) * dfHeight, dfWidth, dfHeight),
+                        hash = hashFn(imageData.data);
                     
-                    if(lastBuffer.length !== 0 && true) {
+                    if(lastBuffer.length !== 0 && isDirty(lastBuffer[i], hash)) {
                         deltas.push(imageData.data);
                     } else {
                         deltas.push(null);
                     }
                     
-                    lastBuffer[i] = true;
+                    lastBuffer[i] = hash;
                 }
                 this.send(deltas);
             })
             .lift("connection", function(canvas, conn) {
-                conn.on("close", this.closed);
+                conn.on("close", this.closed.bind(this, conn));
                 conn.on("data", this.data);
                 conns[conn.peer] = conn;
             })
@@ -161,9 +176,13 @@ var MultiCanvas = (function() {
             .lift("send", function(canvas, data) { 
 
                 Object.keys(conns).forEach(function(peer) {
-                    conns[peer]._buffer = [];
-                    conns[peer].bufferSize = 0;
-                    conns[peer].send(data);
+                    var conn = conns[peer];
+        
+                    conn._buffer = [];
+                    conn.bufferSize = 0;
+                    conn.buffered = false;
+                    
+                    conn.send(data);
                 });
 
             })
