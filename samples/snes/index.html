@@ -1,0 +1,220 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="../../tests/bootstrap.min.css">
+
+    <style type="text/css">
+        body {
+            display: flex;
+            justify-content: center;
+        }
+        canvas {
+            image-rendering: optimizeSpeed;
+        }
+        .displays {
+            display: flex;
+            justify-content: center;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            cursor: pointer;
+        }
+        .displays canvas {
+            border: 5px solid black;
+            margin: 5px;
+        }
+        .center {
+            width: 900px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="center">
+        <div class="page-header">
+            <h1>MultiCanvas SNES Sample</h1>
+        </div>
+        <div class="displays well">
+            <canvas id="canvas" width="256" height="239"></canvas>
+            <canvas id="client" width="256" height="239"></canvas>
+        </div>
+        <input type="text" id="fps" size="5"/>
+        <input type="file" onchange="snes_readfile(this)" />
+        <input type="button" id="start" value="start" onclick="snes_main()" />
+        <div id="status"></div>
+        <textarea id="output" class="well">
+
+        </textarea>
+    </div>
+    <script type="text/javascript" src="xnes9x.js"></script>
+    <script type="text/javascript" src="http://cdn.peerjs.com/0.3.8/peer.min.js"></script>
+    <script type="text/javascript" src="../../src/multicanvas.js"></script>
+    <script type="text/javascript">
+        var hostElement = document.getElementById("canvas"),
+            clientElement = document.getElementById("client"),
+            host = MultiCanvas(hostElement),
+            hostCtx = hostElement.getContext("2d"),
+            client = MultiCanvas(clientElement),
+            clientCtx = clientElement.getContext("2d");
+
+        host.host(1000 / 24);
+
+        host.peer.on("open", function(id) {
+            client.connect(id);
+        });
+
+         // not responsible for the following :/
+
+        frameskip = 0
+         maincanvas = document.getElementById("canvas")
+         mainctx = maincanvas.getContext("2d");
+         imgData = mainctx.createImageData(288, 224)
+         cout = document.getElementById("output")
+
+        function cout_print(txt) {
+            cout.value += txt + "\n"
+            cout.scrollTop = 999999
+        }
+        snes_transparency = 1
+
+        function snes_mainloop() {
+            mainloop(frameskip)
+            frameskipped += frameskip
+            frames++
+            if (frames + frameskipped >= 60) {
+                this_time = new Date().getTime()
+                fps_text.value = ((frames + frameskipped) * 1000 / (this_time - last_time)).toFixed(3)
+                last_time = this_time
+                frameskipped = frames = 0
+            }
+            setTimeout("snes_mainloop()", 0);
+
+        }
+
+        function snes_onkeyevent(e) {
+            var joy1 = 0
+            globale = e
+            var key = e.key || e.keyCode
+            switch (key) {
+                case 87:
+                    joy1 = 0x0010;
+                    break;
+                case 81:
+                    joy1 = 0x0020;
+                    break;
+                case 65:
+                    joy1 = 0x0040;
+                    break;
+                case 83:
+                    joy1 = 0x0080;
+                    break;
+                case 39:
+                    joy1 = 0x0100;
+                    break;
+                case 37:
+                    joy1 = 0x0200;
+                    break;
+                case 40:
+                    joy1 = 0x0400;
+                    break;
+                case 38:
+                    joy1 = 0x0800;
+                    break;
+                case 67:
+                    joy1 = 0x1000;
+                    break;
+                case 68:
+                    joy1 = 0x2000;
+                    break;
+                case 90:
+                    joy1 = 0x4000;
+                    break;
+                case 89:
+                    joy1 = 0x4000;
+                    break;
+                case 88:
+                    joy1 = 0x8000;
+                    break;
+            }
+            if (e.type == "keyup") {
+                joy1state &= ~joy1;
+                native_set_joypad_state(joy1state);
+            } else if (e.type == "keydown") {
+                joy1state |= joy1;
+                native_set_joypad_state(joy1state);
+            }
+            if (joy1) e.preventDefault()
+        }
+
+        function snes_init() {
+            reboot_emulator = Module.cwrap('reboot_emulator', 'number', ['string'])
+            native_set_joypad_state = Module._native_set_joypad_state
+            native_bitmap_pointer = Module._native_bitmap_pointer
+            mainloop = Module._mainloop
+            renderscreen = Module._renderscreen
+            fps_text = document.getElementById("fps")
+            reboot_emulator("/_.smc")
+            frameskipped = 0
+            for (var i = 0; i < 288 * 224 * 4; i += 4) {
+                imgData.data[i + 3] = 0xff
+            }
+
+        }
+
+        function frameskip_adjust(n) {
+            frameskip += n
+            if (frameskip < 0) frameskip = 0
+            frameskip_text.value = frameskip
+        }
+
+        function snes_readfile(controller) {
+            if (window.File && window.FileReader && window.FileList && window.Blob) {} else {
+                alert('The File APIs are not fully supported in this browser.');
+            }
+            var f = controller.files[0]
+            cout_print(f.name)
+            var reader = new FileReader()
+            reader.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    cout_print(Math.round((e.loaded / e.total) * 100) + "%")
+                } else
+                    count_print(e.loaded + "bytes")
+                document.getElementById("start").disabled = false
+
+            }
+            reader.onload = function(e) {
+                cout_print("_.smc loaded")
+                Module.FS_createDataFile("/", "_.smc", new Uint8Array(this.result), true, true)
+            }
+            reader.readAsArrayBuffer(f)
+        }
+
+        function snes_main() {
+            document.getElementById("start").disabled = true
+            snes_init()
+            reboot_romnum = -1
+            frames = 0
+            last_time = new Date().getTime()
+            snes_mainloop();
+        }
+
+        function snes_test(render) {
+            snes_init()
+            start_time = new Date().getTime()
+            for (var i = 0; i < 5000; i++) {
+                mainloop(palf ? 312 : 262)
+                if (render)
+                    renderscreen()
+            }
+            end_time = new Date().getTime()
+            fps_text.value = ((end_time - start_time) / 1000).toFixed(3)
+        }
+    </script>
+</body>
+
+</html>
