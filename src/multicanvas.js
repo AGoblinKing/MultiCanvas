@@ -105,68 +105,21 @@ var Simulate =  (function() {
 var MultiCanvas = (function() {
     "use strict";
     
-    var isDirty = function(old, newB) {
-            return old !== newB;
-        }, 
-        hashFn = function(iter) {
-            var red = 0,
-                green = 0,
-                blue = 0,
-                alpha = 0;
-            
-            for(var i = 0; i < iter.length; i+=4) {
-                red += iter[i];
-                green += iter[i+1];
-                blue += iter[i+2];
-                alpha += iter[i+3];
-            }
-            return "r"+red+"g"+green+"b"+blue+"a"+alpha;
-        },
-        numDf = function(df, number) { return Math.floor(number / df); },
-        toString = function(iter) {
-            var str = "";
-            for(var i = 0; i < iter.length; i++) {
-                str += String.fromCharCode(iter[i]);
-            }
-            return str;
-        },
-        fromString = function(raw) {
-            var iter = raw,
-                results = new Uint8ClampedArray(iter.length);
-            for(var i = 0; i < iter.length; i++) {
-                results[i] = iter.charCodeAt(i);
-            }
-            return results;
-        };
-    
     return function(canvas) {
         var peer = new Peer(Math.floor(Math.random() * 50), { key : "x87ju7n4u66layvi" }),
             conns = {},
             host = false,
-            ctx = canvas.getContext("2d"),
-            lastBuffer = [],
-            drawFactor = 15,
-            dfNum = numDf.bind(undefined, drawFactor),
-            dfWidth = dfNum(canvas.width),
-            dfHeight = dfNum(canvas.height);
-            
+            lossless = false,
+            quality = 0.5,
+            ctx = canvas.getContext("2d");
+        
         return Chainable(canvas)
             .lift("tick", function(canvas) {
-                var deltas = [];
-                for(var i = 0; i < drawFactor * drawFactor; i++) {
-                    var imageData = ctx.getImageData((i % drawFactor) * dfWidth, dfNum(i) * dfHeight, dfWidth, dfHeight),
-                        hash = hashFn(imageData.data);
-                    
-                    if(lastBuffer.length !== 0 && isDirty(lastBuffer[i], hash)) {
-                        deltas.push(imageData.data);
-                    } else {
-                        deltas.push(null);
-                    }
-                    
-                    lastBuffer[i] = hash;
+                if(lossless) {
+                    this.send(canvas.toDataURL("image/png"));
+                } else {
+                    this.send(canvas.toDataURL("image/jpeg", quality));
                 }
-
-                this.send(deltas);
             })
             .lift("connection", function(canvas, conn) {
                 conn.on("close", this.closed.bind(this, conn));
@@ -175,31 +128,26 @@ var MultiCanvas = (function() {
             })
             .lift("data", function(canvas, data) {
                 if(!host) {
-                    //probably move this out
-                    var imageData = ctx.createImageData(dfWidth, dfHeight);
-                
-                    for(var i = 0; i < data.length; i++) {
-                        if(data[i]) {
-                            var rawData = new Uint8ClampedArray(data[i]);
-                            imageData.data.set(rawData);
-                            ctx.putImageData(imageData, (i % drawFactor) * dfWidth, dfNum(i) * dfHeight);
-                        }
-                    }
+                    var img = new Image();
+                    img.src = data;
+                    img.onload = function() {
+                        ctx.drawImage(img, 0, 0);
+                    };
                 }
             })
             .lift("closed", function(canvas, conn) {
                 delete conns[conn.peer];
             })
             .lift("send", function(canvas, data) { 
-
                 Object.keys(conns).forEach(function(peer) {
                     var conn = conns[peer];
-        
-                    // buffer is greater than 1 lets concat onto next message
-                    if(conn._buffer.length > 50) {
-                        conn._buffer = [];
-                        conn.bufferSize = 0;
-                        conn.buffering = false;
+                    
+                    //kill buffer if it grows too large
+                    if(conn.bufferSize > 5) {
+                            conn._buffer = [];
+                            conn.bufferSize = 0;
+                            conn.buffered = false;
+                        }
                     }
                     conn.send(data);
                 });
@@ -209,11 +157,15 @@ var MultiCanvas = (function() {
             .property("peer", function(canvas) {
                 return peer;
             })
-            .lift("host", function(canvas, tickRate, nBufferSize) {
+            .lift("host", function(canvas, tickRate) {
                 host = true;
                 peer.on("connection", this.connection);
                 // start broadcasting data
                 setInterval(this.tick, tickRate);
+            })
+            .lift("quality", function(canvas, plossless, pquality) {
+                lossless = plossless;
+                quality = pquality;
             })
             .lift("connect", function(canvas, id) {
                 this.connection(peer.connect(id));

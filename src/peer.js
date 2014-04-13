@@ -2189,9 +2189,7 @@ Negotiator.startConnection = function(connection, options) {
     if (connection.type === 'data') {
       // Create the datachannel.
       var config = {
-          reliable : false,
-          maxRetransmits: 0,
-          ordered : false
+
       };
       // Dropping reliable:false support, since it seems to be crashing
       // Chrome.
