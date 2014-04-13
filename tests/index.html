@@ -108,7 +108,7 @@
 
             it("should have a host connect", function(callback) {
                 var peerHost = host.peer;
-                host.host(1000/24);
+                host.host(1000/24).lossless = true;
 
                 peerHost.on("connection", function() { 
                     callback();

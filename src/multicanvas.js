@@ -1,7 +1,7 @@
+// yeah polluting the namespace with chainable :/
 var Chainable = (function() {
     "use strict";
-
-    // thought about putting additional values here
+    
     return function unit(value) {
         var chains = {
             bind : function(fn, args) { 
@@ -35,82 +35,61 @@ var Chainable = (function() {
     };
 } ());
 
-/*
-var Simulate =  (function() {
-    var defaultOptions = {
-            ctrlKey: false,
-            altKey: false,
-            shiftKey: false,
-            metaKey: false,
-            bubbles: true,
-            cancelable: true
-        }, 
-        defaultMouse = {
-            pointerX: 0,
-            pointerY: 0,
-            button: 0
-        },
-        eventMatchers = {
-            "HTMLEvents": /^(?:load|unload|abort|error|select|change|submit|reset|focus|blur|resize|scroll)$/,
-            "MouseEvents": /^(?:click|dblclick|mouse(?:down|up|over|move|out))$/
-        }
-    
-    function extend(destination, source) {
-        for (var property in source)
-          destination[property] = source[property];
-        return destination;
-    }
-    
-    function simulate(element, eventName)
-    {
-        var options = extend(defaultOptions, arguments[2] || {});
-        var oEvent, eventType = null;
-
-        for (var name in eventMatchers)
-        {
-            if (eventMatchers[name].test(eventName)) { eventType = name; break; }
-        }
-
-        if (!eventType)
-            throw new SyntaxError('Only HTMLEvents and MouseEvents interfaces are supported');
-
-        if (document.createEvent)
-        {
-            oEvent = document.createEvent(eventType);
-            if (eventType == 'HTMLEvents')
-            {
-                oEvent.initEvent(eventName, options.bubbles, options.cancelable);
-            }
-            else
-            {
-                oEvent.initMouseEvent(eventName, options.bubbles, options.cancelable, document.defaultView,
-                options.button, options.pointerX, options.pointerY, options.pointerX, options.pointerY,
-                options.ctrlKey, options.altKey, options.shiftKey, options.metaKey, options.button, element);
-            }
-            element.dispatchEvent(oEvent);
-        }
-        else
-        {
-            options.clientX = options.pointerX;
-            options.clientY = options.pointerY;
-            var evt = document.createEventObject();
-            oEvent = extend(evt, options);
-            element.fireEvent('on' + eventName, oEvent);
-        }
-        return element;
-    }
-} ());
-*/
-
 var MultiCanvas = (function() {
     "use strict";
     
+    var events = [
+            "keydown", "keypress", "mousedown", "mouseup", "mouseover", "click", "dblclick",
+            "keyup", "mouseout", "mousemove"
+        ],
+        Simulate = (function() {
+            var eventMatchers = {
+                    "HTMLEvents": /^(?:load|unload|abort|error|select|change|submit|reset|focus|blur|resize|scroll)$/,
+                    "MouseEvents": /^(?:click|dblclick|mouse(?:down|up|over|move|out))$/,
+                    "KeyboardEvents": /^(?:keydown|keyup|keypress)$/
+                };
+
+            return function (element, options) {
+                var oEvent, 
+                    eventType;
+                
+                // really dislike this part
+                for (var name in eventMatchers) {
+                    if (eventMatchers[name].test(options.type)) { 
+                        eventType = name; break; 
+                    }
+                }
+                // TODO: mouse events should be an offset based on where on the canvas they clicked
+                switch(eventType) {
+                    case "MouseEvents":
+                        oEvent = new MouseEvent(options.type, {});
+                        break;
+                    case "KeyboardEvents":
+                        oEvent = new KeyboardEvent(options.type, {});
+                        Object.defineProperty(oEvent, "keyCode", {
+                            get : function() { return options.keyCode; }
+                        });
+                        
+                        Object.defineProperty(oEvent, "which", {
+                            get : function() { return options.keyCode; }
+                        });
+                        break;
+                    default:
+                        oEvent = new Event(options.type, options);
+                }
+                element.dispatchEvent(oEvent);
+
+                return element;
+            };
+        } ());
+
     return function(canvas) {
         var peer = new Peer(Math.floor(Math.random() * 50), { key : "x87ju7n4u66layvi" }),
             conns = {},
             host = false,
             lossless = false,
             quality = 0.5,
+            eventTarget,
             ctx = canvas.getContext("2d"),
             onTick = function() {
                 if(lossless) {
@@ -135,17 +114,36 @@ var MultiCanvas = (function() {
                     img.onload = function() {
                         ctx.drawImage(img, 0, 0);
                     };
+                } else {
+                    if(eventTarget) {
+                        Simulate(eventTarget, data);
+                    }
                 }
             },
             onClosed = function(conn) {
                 delete conns[conn.peer];
             },
+            onEvent = function(e) {
+                // I could care about sending only defined data... or I couldn't.
+                e.preventDefault();
+
+                send({
+                    type : e.type,
+                    keyCode : e.keyCode,
+                    charCode : e.charCode,
+                    screenX : e.screenX,
+                    screenY : e.screenY,
+                    clientX : e.clientX,
+                    clientY : e.clientY,
+                    button : e.button
+                });
+            },
             send = function(data) {
                 Object.keys(conns).forEach(function(peer) {
                     var conn = conns[peer];
                     
-                    //kill buffer if it grows too large
-                    if(conn.bufferSize > 5) {
+                    // kill buffer if it grows too large on host
+                    if(host && conn.bufferSize > 5) {
                         conn._buffer = [];
                         conn.bufferSize = 0;
                         conn.buffered = false;
@@ -154,9 +152,8 @@ var MultiCanvas = (function() {
                     conn.send(data);
                 });
             };
-        
+
         return Chainable(canvas)
-            // Public APIs
             .property("peer", function(canvas) {
                 return peer;
             })
@@ -166,14 +163,34 @@ var MultiCanvas = (function() {
                 // start broadcasting data
                 setInterval(onTick, tickRate);
             })
+            .property("lossless", function(canvas){
+                return lossless;
+            }, function(canvas, plossless) {
+                lossless = plossless;
+            })
             .property("quality", function(canvas) {
                 return quality;
             }, function(canvas, pquality) {
                 quality = pquality;
             })
+            .lift("sim", function(canvas, e) {
+                // useful when you want to provide external controls
+                onEvent(e);
+            })
             .lift("connect", function(canvas, id) {
                 onConnection(peer.connect(id));
-                // bind inputs
+            })
+            .lift("events", function(canvas, target, events) {
+                target = target || canvas;
+                
+                if(!host) {
+                    events.forEach(function(event) {
+                        target.addEventListener(event, onEvent);
+                    });
+                } else {
+                    eventTarget = target;
+                }
+
             });
     };
 } ());

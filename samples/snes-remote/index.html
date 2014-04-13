@@ -78,7 +78,8 @@
         });
         
         document.getElementById("startConnect").addEventListener("click", function() {
-            mc.connect(document.getElementById("connectId").value);
+            mc.connect(document.getElementById("connectId").value)
+              .events(document, ["keypress", "keydown", "keyup"]);
         });
         
         document.getElementById("quality").addEventListener("change", function(e) {
@@ -218,7 +219,7 @@
                 cout_print("_.smc loaded")
                 Module.FS_createDataFile("/", "_.smc", new Uint8Array(this.result), true, true)
                 snes_main();
-                mc.host(1000 / 24);
+                mc.host(1000 / 24).events(document);
             }
             reader.readAsArrayBuffer(f)
         }

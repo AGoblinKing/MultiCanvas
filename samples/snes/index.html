@@ -70,8 +70,17 @@
         });
 
          // not responsible for the following :/
-
-        frameskip = 0
+        // shim layer with setTimeout fallback
+        window.requestAnimFrame = (function(){
+          return  window.requestAnimationFrame       ||
+                  window.webkitRequestAnimationFrame ||
+                  window.mozRequestAnimationFrame    ||
+                  function( callback ){
+                    window.setTimeout(callback, 1000 / 60);
+                  };
+        })();
+        
+         frameskip = 0
          maincanvas = document.getElementById("canvas")
          mainctx = maincanvas.getContext("2d");
          imgData = mainctx.createImageData(288, 224)
@@ -93,63 +102,8 @@
                 last_time = this_time
                 frameskipped = frames = 0
             }
-            setTimeout("snes_mainloop()", 0);
-
-        }
-
-        function snes_onkeyevent(e) {
-            var joy1 = 0
-            globale = e
-            var key = e.key || e.keyCode
-            switch (key) {
-                case 87:
-                    joy1 = 0x0010;
-                    break;
-                case 81:
-                    joy1 = 0x0020;
-                    break;
-                case 65:
-                    joy1 = 0x0040;
-                    break;
-                case 83:
-                    joy1 = 0x0080;
-                    break;
-                case 39:
-                    joy1 = 0x0100;
-                    break;
-                case 37:
-                    joy1 = 0x0200;
-                    break;
-                case 40:
-                    joy1 = 0x0400;
-                    break;
-                case 38:
-                    joy1 = 0x0800;
-                    break;
-                case 67:
-                    joy1 = 0x1000;
-                    break;
-                case 68:
-                    joy1 = 0x2000;
-                    break;
-                case 90:
-                    joy1 = 0x4000;
-                    break;
-                case 89:
-                    joy1 = 0x4000;
-                    break;
-                case 88:
-                    joy1 = 0x8000;
-                    break;
-            }
-            if (e.type == "keyup") {
-                joy1state &= ~joy1;
-                native_set_joypad_state(joy1state);
-            } else if (e.type == "keydown") {
-                joy1state |= joy1;
-                native_set_joypad_state(joy1state);
-            }
-            if (joy1) e.preventDefault()
+            
+            requestAnimFrame(snes_mainloop);
         }
 
         function snes_init() {
@@ -165,12 +119,6 @@
                 imgData.data[i + 3] = 0xff
             }
 
-        }
-
-        function frameskip_adjust(n) {
-            frameskip += n
-            if (frameskip < 0) frameskip = 0
-            frameskip_text.value = frameskip
         }
 
         function snes_readfile(controller) {
@@ -202,18 +150,6 @@
             frames = 0
             last_time = new Date().getTime()
             snes_mainloop();
-        }
-
-        function snes_test(render) {
-            snes_init()
-            start_time = new Date().getTime()
-            for (var i = 0; i < 5000; i++) {
-                mainloop(palf ? 312 : 262)
-                if (render)
-                    renderscreen()
-            }
-            end_time = new Date().getTime()
-            fps_text.value = ((end_time - start_time) / 1000).toFixed(3)
         }
     </script>
 </body>
