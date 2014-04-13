@@ -5,7 +5,8 @@
     <meta charset="utf-8">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="../../tests/bootstrap.min.css">
-
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.3/css/font-awesome.min.css">
+    <title>MultiCanvas SNES</title>
     <style type="text/css">
         body {
             display: flex;
@@ -17,7 +18,6 @@
         }
         .displays {
             display: flex;
-            justify-content: center;
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             -khtml-user-select: none;
@@ -34,20 +34,87 @@
             width: 900px;
         }
         .flex { display: flex; }
+        .spanner { flex: 1; }
         #fps { display: none; }
         input, button { margin: 5px; }
         #output { width: 100%; margin: 5px;}
+        #chatArea { width: 100%; height: 300px; background-color: #222222; }
+        .controlDock { display: flex; margin-top: 15px;}
+        canvas.expanded { width: 100% }
+        .buttonGroup {
+            display: flex;
+            flex: 1;
+        }
+        .buttonGroup button { flex: 1; }
+        .vertButtons {
+            display: flex;
+            flex: 2;
+            flex-direction: column;
+        }
     </style>
 </head>
 
 <body>
     <div class="center">
         <div class="page-header">
-            <h1>MultiCanvas SNES Sample</h1>
+            <h1>MultiCanvas SNES</h1>
         </div>
-        <div class="displays well">
-            <canvas id="canvas" width="256" height="239"></canvas>
+        <div class="well gameArea">
+            <div class="displays">
+                <div class="buttonGroup">
+                    <button class="btn btn-primary" data-button="left"><i class="fa fa-arrow-left"></i></button>
+                    <div class="vertButtons">
+                        <button class="btn btn-primary" data-button="up"><i class="fa fa-arrow-up"></i></button>
+                        <button class="btn btn-primary" data-button="down"><i class="fa fa-arrow-down"></i></button>
+                    </div>
+                    <button class="btn btn-primary" data-button="right"><i class="fa fa-arrow-right"></i></button>
+                </div>
+                <canvas id="canvas" width="256" height="239"></canvas>
+                <div class="buttonGroup">
+                    
+                    <div class="vertButtons">
+                        <button class="btn btn-primary" data-button="a">L</button>
+                        <button class="btn btn-primary" data-button="z">R</button>
+                    </div>
+                    <div class="vertButtons">
+                        <button class="btn btn-primary" data-button="s">X</button>
+                        <button class="btn btn-primary" data-button="x">A</button>
+                    </div>
+                    <div class="vertButtons">
+                        <button class="btn btn-primary" data-button="d">Y</button>
+                        <button class="btn btn-primary" data-button="c">B</button>
+                    </div>
+                </div>
+            </div>
+            <div class="controlDock">
+                <div class="spanner">
+                        <button class="btn btn-primary" data-button="start">Start</button>
+                        <button class="btn btn-primary" data-button="select">Select</button>
+                </div>
+                <div class="btn-group" id="controller" data-toggle="buttons">
+                  <label class="btn btn-primary active">
+                    <input type="radio" name="options" data-controller="1"> Controller 1
+                  </label>
+                  <label class="btn btn-primary">
+                    <input type="radio" name="options" data-controller="2"> Controller 2
+                  </label>
+                    <!--
+                  <label class="btn btn-primary">
+                    <input type="radio" name="options" data-controller="3"> Controller 3
+                  </label>
+                  <label class="btn btn-primary">
+                    <input type="radio" name="options" data-controller="4"> Controller 4
+                  </label>-->
+                </div>
+                <div class="spanner flex">
+                    <div class="spanner"></div>
+                    <div class="btn-group">
+                        <label id="toggleZoom" class="btn btn-primary"><i class="fa fa-expand"></i></label>
+                    </div>
+                </div>
+            </div>
         </div>
+        
         <ul class="nav nav-tabs">
             <li class="active"><a href="#host" data-toggle="tab">Host</a></li>
             <li><a href="#client" data-toggle="tab">Client</a></li>
@@ -64,7 +131,10 @@
                 <label>Host Id (give this to your friend)</label><h4 id="hostId"></h4><br/>
                 </div>
                 <div class="form-group">
-                <label>Quality</label><input id="quality" type="range" min="0" max="100" value="50"/>
+                <label>Quality (less quality, less lag)</label><input id="quality" type="range" min="0" max="100" value="50"/>
+                </div>
+                <div class="form-group">
+                <label>Lossless (laggy but great)</label><br/><input id="lossless" type="checkbox"/>
                 </div>
             </div>
             <div class="tab-pane form" id="client">
@@ -75,11 +145,14 @@
                 <button id="startConnect" class="btn btn-success">Connect to Host</button>
             </div>
             <div class="tab-pane" id="controls">
-                <table class="table">
+                <table class="table table-striped">
+                    <thead>
                     <tr>
                         <th>SNES</th>
                         <th>Keyboard</th>
                     </tr>
+                    </thead>
+                    <tbody>
                     <tr>
                         <td>Up</td>
                         <td>Up Arrow</td>
@@ -128,9 +201,14 @@
                         <td>Right Shoulder</td>
                         <td>Z</td>
                     </tr>
+                    </tbody>
                 </table>
             </div>
-            <div class="tab-pane" id="chat"></div>
+            <div class="tab-pane" id="chat">
+                <textarea id="chatArea">
+
+                </textarea>
+            </div>
         </div>        
         <div id="status"></div>
         <textarea id="output" class="well">
@@ -140,13 +218,71 @@
     
     <script src="http://code.jquery.com/jquery-2.1.0.min.js" type="text/javascript"></script>
     <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js" type="text/javascript"></script>
+    <script type="text/javascript" src="../xnes9x-tpl.js"></script>
     <script type="text/javascript" src="../xnes9x.js"></script>
     <script type="text/javascript" src="../../src/peer.js"></script>
     <script type="text/javascript" src="../../src/multicanvas.js"></script>
     <script type="text/javascript">
         var canvasElement = document.getElementById("canvas"),
             mc = MultiCanvas(canvasElement);
+        
+        (function($) {            
+            $("#toggleZoom").on("click", function() {
+                $(canvasElement).toggleClass("expanded");
+                $(".buttonGroup").toggle();
+            });
+            
+            function getKeyCode(key) {
+                switch(key) {
+                    case "start":
+                    case "enter":
+                        return 13;
+                    case "shift":
+                    case "select":
+                        return 16;
+                    case "up":
+                        return 38;
+                    case "down":
+                        return 40;
+                    case "left":
+                        return 37;
+                    case "right":
+                        return 39;
+                    default:
+                        return key.toUpperCase().charCodeAt(0);
+                }
+            }
+         
+            function eventBinder(event, e) {
+                var which = getKeyCode($(e.currentTarget).data("button"));
+                mc.sim({type: event, keyCode: which});
+            }
+        
+            $("[data-button]").on({
+                "click touchstart" : eventBinder.bind(undefined, "keypress"),
+                "mousedown touchstart" : eventBinder.bind(undefined, "keydown"),
+                "mouseup touchend" :  eventBinder.bind(undefined, "keyup")
+            })  
+            .on("touchmove", function(e) { e.preventDefault(); })
+            .on("touchstart", function(e) { 
+                var t2 = e.timeStamp
+                  , t1 = $(this).data('lastTouch') || t2
+                  , dt = t2 - t1
+                  , fingers = e.originalEvent.touches.length;
+                $(this).data('lastTouch', t2);
+                if (!dt || dt > 500 || fingers > 1) return; // not double-tap
 
+                e.preventDefault(); // double tap - prevent the zoom
+                // also synthesize click events we just swallowed up
+                $(this).trigger('click').trigger('click');
+            });
+            
+            $("#lossless").change(function(e) {
+                mc.lossless = e.target.checked;
+            });
+        } (jQuery));
+
+        
         mc.peer.on("open", function(id) {
             document.getElementById("hostId").innerHTML = id;
         });
@@ -251,17 +387,6 @@
             snes_mainloop();
         }
 
-        function snes_test(render) {
-            snes_init()
-            start_time = new Date().getTime()
-            for (var i = 0; i < 5000; i++) {
-                mainloop(palf ? 312 : 262)
-                if (render)
-                    renderscreen()
-            }
-            end_time = new Date().getTime()
-            fps_text.value = ((end_time - start_time) / 1000).toFixed(3)
-        }
     </script>
 </body>
 

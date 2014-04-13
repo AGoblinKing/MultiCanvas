@@ -97,10 +97,12 @@ var MultiCanvas = (function() {
                     send(canvas.toDataURL("image/png"));
                 } else {
                     // WebP is kinda CPU intensive... disable for now
-                    /* if(util.browser === "Chrome") {
+                    if(util.browser === "Chrome") {
                         send(canvas.toDataURL("image/webp", quality));   
-                    } */
-                    send(canvas.toDataURL("image/jpeg", quality));
+                    } else {
+                        send(canvas.toDataURL("image/jpeg", quality));
+                    }
+                    
                 }
             },
             onConnection = function(conn) {
@@ -126,8 +128,10 @@ var MultiCanvas = (function() {
             },
             onEvent = function(e) {
                 // I could care about sending only defined data... or I couldn't.
-                e.preventDefault();
-
+                if(e.preventDefault) {
+                    e.preventDefault();
+                }
+                
                 send({
                     type : e.type,
                     keyCode : e.keyCode,
@@ -178,8 +182,13 @@ var MultiCanvas = (function() {
                 quality = pquality;
             })
             .lift("sim", function(canvas, e) {
-                // useful when you want to provide external controls
-                onEvent(e);
+                if(host) {
+                    if(eventTarget) {
+                        Simulate(eventTarget, e);
+                    }
+                } else {
+                    onEvent(e);
+                }
             })
             .lift("connect", function(canvas, id) {
                 onConnection(peer.connect(id));
