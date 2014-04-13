@@ -48,24 +48,98 @@
         <div class="displays well">
             <canvas id="canvas" width="256" height="239"></canvas>
         </div>
-        <h3>Host</h3>
-        <div class="well">
-            <input type="text" id="fps" size="5"/>
-            <label>Rom</label><input class="btn btn-primary" type="file" onchange="snes_readfile(this)" />
-            <label>Host Id (give this to your friend)</label><h4 id="hostId"></h4><br/>
-            <label>Quality</label><input id="quality" type="range" min="0" max="100" value="50"/>
-        </div>
-        <h3>Client</h3>
-        <div class="well">
-            <label>Host Id</label><input id="connectId" type="text" placeholder="ID of host you want to connect to"/><br/>
-            <button id="startConnect" class="btn btn-success">Connect to Host</button>
-        </div>
-        
+        <ul class="nav nav-tabs">
+            <li class="active"><a href="#host" data-toggle="tab">Host</a></li>
+            <li><a href="#client" data-toggle="tab">Client</a></li>
+            <li><a href="#controls" data-toggle="tab">Controls</a></li>
+            <li><a href="#chat" data-toggle="tab" id="chatTab">Chat</a></li>
+        </ul>
+        <div class="tab-content well">
+            <div class="tab-pane active" id="host">
+                <input type="text" id="fps" size="5"/>
+                <div class="form-group">
+                <label>Rom</label><input class="btn btn-primary" type="file" onchange="snes_readfile(this)" />
+                </div>
+                <div class="form-group">
+                <label>Host Id (give this to your friend)</label><h4 id="hostId"></h4><br/>
+                </div>
+                <div class="form-group">
+                <label>Quality</label><input id="quality" type="range" min="0" max="100" value="50"/>
+                </div>
+            </div>
+            <div class="tab-pane form" id="client">
+                <div class="form-group">
+                    <label>Host Id</label>
+                    <input id="connectId" type="text" class="form-control" placeholder="ID of host you want to connect to"/>
+                </div>
+                <button id="startConnect" class="btn btn-success">Connect to Host</button>
+            </div>
+            <div class="tab-pane" id="controls">
+                <table class="table">
+                    <tr>
+                        <th>SNES</th>
+                        <th>Keyboard</th>
+                    </tr>
+                    <tr>
+                        <td>Up</td>
+                        <td>Up Arrow</td>
+                    </tr>
+                    <tr>
+                        <td>Down</td>
+                        <td>Down Arrow</td>
+                    </tr>
+                    <tr>
+                        <td>Left</td>
+                        <td>Left Arrow</td>
+                    </tr>
+                    <tr>
+                        <td>Right</td>
+                        <td>Right Arrow</td>
+                    </tr>
+                    <tr>
+                        <td>Start</td>
+                        <td>Enter</td>
+                    </tr>
+                    <tr>
+                        <td>Select</td>
+                        <td>Space</td>
+                    </tr>
+                    <tr>
+                        <td>A</td>
+                        <td>D</td>
+                    </tr>
+                    <tr>
+                        <td>B</td>
+                        <td>C</td>
+                    </tr>
+                    <tr>
+                        <td>X</td>
+                        <td>S</td>
+                    </tr>
+                    <tr>
+                        <td>Y</td>
+                        <td>X</td>
+                    </tr>
+                    <tr>
+                        <td>Left Shoulder</td>
+                        <td>A</td>
+                    </tr>
+                    <tr>
+                        <td>Right Shoulder</td>
+                        <td>Z</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="tab-pane" id="chat"></div>
+        </div>        
         <div id="status"></div>
         <textarea id="output" class="well">
 
         </textarea>
     </div>
+    
+    <script src="http://code.jquery.com/jquery-2.1.0.min.js" type="text/javascript"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js" type="text/javascript"></script>
     <script type="text/javascript" src="../xnes9x.js"></script>
     <script type="text/javascript" src="../../src/peer.js"></script>
     <script type="text/javascript" src="../../src/multicanvas.js"></script>
@@ -124,61 +198,6 @@
 
         }
 
-        function snes_onkeyevent(e) {
-            var joy1 = 0
-            globale = e
-            var key = e.key || e.keyCode
-            switch (key) {
-                case 87:
-                    joy1 = 0x0010;
-                    break;
-                case 81:
-                    joy1 = 0x0020;
-                    break;
-                case 65:
-                    joy1 = 0x0040;
-                    break;
-                case 83:
-                    joy1 = 0x0080;
-                    break;
-                case 39:
-                    joy1 = 0x0100;
-                    break;
-                case 37:
-                    joy1 = 0x0200;
-                    break;
-                case 40:
-                    joy1 = 0x0400;
-                    break;
-                case 38:
-                    joy1 = 0x0800;
-                    break;
-                case 67:
-                    joy1 = 0x1000;
-                    break;
-                case 68:
-                    joy1 = 0x2000;
-                    break;
-                case 90:
-                    joy1 = 0x4000;
-                    break;
-                case 89:
-                    joy1 = 0x4000;
-                    break;
-                case 88:
-                    joy1 = 0x8000;
-                    break;
-            }
-            if (e.type == "keyup") {
-                joy1state &= ~joy1;
-                native_set_joypad_state(joy1state);
-            } else if (e.type == "keydown") {
-                joy1state |= joy1;
-                native_set_joypad_state(joy1state);
-            }
-            if (joy1) e.preventDefault()
-        }
-
         function snes_init() {
             reboot_emulator = Module.cwrap('reboot_emulator', 'number', ['string'])
             native_set_joypad_state = Module._native_set_joypad_state
@@ -225,7 +244,6 @@
         }
 
         function snes_main() {
-
             snes_init()
             reboot_romnum = -1
             frames = 0

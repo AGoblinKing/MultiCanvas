@@ -90,16 +90,17 @@ var MultiCanvas = (function() {
             lossless = false,
             quality = 0.5,
             eventTarget,
+            chatTarget,
             ctx = canvas.getContext("2d"),
             onTick = function() {
                 if(lossless) {
                     send(canvas.toDataURL("image/png"));
                 } else {
-                    if(util.browser === "Chrome") {
+                    // WebP is kinda CPU intensive... disable for now
+                    /* if(util.browser === "Chrome") {
                         send(canvas.toDataURL("image/webp", quality));   
-                    } else {
-                        send(canvas.toDataURL("image/jpeg", quality));
-                    }
+                    } */
+                    send(canvas.toDataURL("image/jpeg", quality));
                 }
             },
             onConnection = function(conn) {
@@ -151,6 +152,9 @@ var MultiCanvas = (function() {
                     
                     conn.send(data);
                 });
+            },
+            sendMessage = function(message) {
+                send(peer.id + "> " + message);
             };
 
         return Chainable(canvas)
@@ -190,7 +194,17 @@ var MultiCanvas = (function() {
                 } else {
                     eventTarget = target;
                 }
-
+            })
+            .lift("chat", function(canvas, outTarget, inTarget) {
+                chatTarget = outTarget;
+                
+                inTarget.addEventListener("keypress", function(e) {
+                    if(e.keyCode === 13) {
+                        e.preventDefault();
+                        sendMessage(inTarget.value);
+                        inTarget.value = "";
+                    }
+                });
             });
     };
 } ());
