@@ -111,22 +111,24 @@ var MultiCanvas = (function() {
             host = false,
             lossless = false,
             quality = 0.5,
-            ctx = canvas.getContext("2d");
-        
-        return Chainable(canvas)
-            .lift("tick", function(canvas) {
+            ctx = canvas.getContext("2d"),
+            onTick = function() {
                 if(lossless) {
-                    this.send(canvas.toDataURL("image/png"));
+                    send(canvas.toDataURL("image/png"));
                 } else {
-                    this.send(canvas.toDataURL("image/jpeg", quality));
+                    if(util.browser === "Chrome") {
+                        send(canvas.toDataURL("image/webp", quality));   
+                    } else {
+                        send(canvas.toDataURL("image/jpeg", quality));
+                    }
                 }
-            })
-            .lift("connection", function(canvas, conn) {
-                conn.on("close", this.closed.bind(this, conn));
-                conn.on("data", this.data);
+            },
+            onConnection = function(conn) {
+                conn.on("close", onClosed.bind(undefined, conn));
+                conn.on("data", onData);
                 conns[conn.peer] = conn;
-            })
-            .lift("data", function(canvas, data) {
+            },
+            onData = function(data) {
                 if(!host) {
                     var img = new Image();
                     img.src = data;
@@ -134,41 +136,43 @@ var MultiCanvas = (function() {
                         ctx.drawImage(img, 0, 0);
                     };
                 }
-            })
-            .lift("closed", function(canvas, conn) {
+            },
+            onClosed = function(conn) {
                 delete conns[conn.peer];
-            })
-            .lift("send", function(canvas, data) { 
+            },
+            send = function(data) {
                 Object.keys(conns).forEach(function(peer) {
                     var conn = conns[peer];
                     
                     //kill buffer if it grows too large
                     if(conn.bufferSize > 5) {
-                            conn._buffer = [];
-                            conn.bufferSize = 0;
-                            conn.buffered = false;
-                        }
+                        conn._buffer = [];
+                        conn.bufferSize = 0;
+                        conn.buffered = false;
                     }
+                    
                     conn.send(data);
                 });
-
-            })
+            };
+        
+        return Chainable(canvas)
             // Public APIs
             .property("peer", function(canvas) {
                 return peer;
             })
             .lift("host", function(canvas, tickRate) {
                 host = true;
-                peer.on("connection", this.connection);
+                peer.on("connection", onConnection);
                 // start broadcasting data
-                setInterval(this.tick, tickRate);
+                setInterval(onTick, tickRate);
             })
-            .lift("quality", function(canvas, plossless, pquality) {
-                lossless = plossless;
+            .property("quality", function(canvas) {
+                return quality;
+            }, function(canvas, pquality) {
                 quality = pquality;
             })
             .lift("connect", function(canvas, id) {
-                this.connection(peer.connect(id));
+                onConnection(peer.connect(id));
                 // bind inputs
             });
     };

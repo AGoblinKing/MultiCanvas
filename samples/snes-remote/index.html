@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="utf-8">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="../../tests/bootstrap.min.css">
 
     <style type="text/css">
@@ -47,14 +48,17 @@
         <div class="displays well">
             <canvas id="canvas" width="256" height="239"></canvas>
         </div>
-        <div class="flex">
+        <h3>Host</h3>
+        <div class="well">
             <input type="text" id="fps" size="5"/>
-            <input class="btn btn-primary" type="file" onchange="snes_readfile(this)" />
-            <input id="hostId" type="text" placeholder="Your ID once you click host" readonly/>
+            <label>Rom</label><input class="btn btn-primary" type="file" onchange="snes_readfile(this)" />
+            <label>Host Id (give this to your friend)</label><h4 id="hostId"></h4><br/>
+            <label>Quality</label><input id="quality" type="range" min="0" max="100" value="50"/>
         </div>
-        <div class="flex">
+        <h3>Client</h3>
+        <div class="well">
+            <label>Host Id</label><input id="connectId" type="text" placeholder="ID of host you want to connect to"/><br/>
             <button id="startConnect" class="btn btn-success">Connect to Host</button>
-            <input id="connectId" type="text" placeholder="ID of host you want to connect to"/>
         </div>
         
         <div id="status"></div>
@@ -70,17 +74,30 @@
             mc = MultiCanvas(canvasElement);
 
         mc.peer.on("open", function(id) {
-            document.getElementById("hostId").value = id;
+            document.getElementById("hostId").innerHTML = id;
         });
         
         document.getElementById("startConnect").addEventListener("click", function() {
             mc.connect(document.getElementById("connectId").value);
         });
         
+        document.getElementById("quality").addEventListener("change", function(e) {
+           mc.quality = e.target.value / 100; 
+        });
+        
 
          // not responsible for the following :/
+        // shim layer with setTimeout fallback
+        window.requestAnimFrame = (function(){
+          return  window.requestAnimationFrame       ||
+                  window.webkitRequestAnimationFrame ||
+                  window.mozRequestAnimationFrame    ||
+                  function( callback ){
+                    window.setTimeout(callback, 1000 / 60);
+                  };
+        })();
 
-        frameskip = 0
+         frameskip = 0
          maincanvas = document.getElementById("canvas")
          mainctx = maincanvas.getContext("2d");
          imgData = mainctx.createImageData(288, 224)
@@ -102,7 +119,7 @@
                 last_time = this_time
                 frameskipped = frames = 0
             }
-            setTimeout("snes_mainloop()", 0);
+            requestAnimFrame(snes_mainloop);
 
         }
 
