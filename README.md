@@ -10,6 +10,6 @@ Requires Peer.js for WebRTC connections.
 Demos
 =====
 
-- http://joshgalvin.github.io/MultiCanvas/tests/
-- http://joshgalvin.github.io/MultiCanvas/samples/snes/
-- http://joshgalvin.github.io/MultiCanvas/samples/snes-remote/
+- http://agoblinking.github.io/MultiCanvas/tests/
+- http://agoblinking.github.io/MultiCanvas/samples/snes/
+- http://agoblinking.github.io/MultiCanvas/samples/snes-remote/
